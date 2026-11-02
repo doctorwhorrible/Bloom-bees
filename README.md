@@ -34,7 +34,7 @@ Level layouts live in `src/levels.ts` (`.` empty, `#` rock, `1`/`2`/`3` = pulses
 `tools/gen.ts` is a random field generator for finding candidate levels (`npx tsx tools/gen.ts <seed> <w> <h> "1:4,2:3,#:2,.:1" <tries>`).
 
 ### Rules implemented (see DESIGN.md)
-- A flower relays one pulse to each cardinal neighbor at most once per bee (once per turn), and only if it was not already in bloom when that bee was placed. Later pulses that turn still add charge. Pulses into a flower that started the turn in bloom are absorbed. A bee = one received pulse on its own tile. Rocks/empty block. Order can matter; it does not in the ten shipped levels.
+- A flower relays one pulse at most once per bee, and only if it was not already in bloom when that bee was placed. It does not pulse back to whoever just pulsed it (no rebound), so a bud is not finished by its own echo. The bee's own tile has no sender and pulses every neighbor. Later pulses that turn still add charge. Rocks/empty block. Order can matter; it does on Orchard Maze and Night Garden.
 - Waves resolve breadth-first; animated wave by wave with a chain counter and rising pitch.
 - One bee per tile; tapping a bloomed flower is blocked (no bee spent); tapping your own bee picks it up; undo/reset are free.
 - Limit = par + spare (World 1 +3, World 2 +2, World 3 +1). Stars: ≤ par 3★, par+1 2★, within limit 1★; a hint costs 1★ (never below 1★).

@@ -19,32 +19,37 @@ const relays = (waves: Wave[], tile: number) =>
   const r = stateFor(g, [0]);
   if (!isWon(g, r)) fail("bee on 1-flower region should flood it");
 
-  // bee on the flower half-charges the bud; the bud relays once and the return is absorbed
+  // no rebound: a bee on the bud blooms the flower and does NOT get an echo back
   const g2 = parseGrid(["21"]);
-  const rA = stateFor(g2, [1]);
-  if (!(rA[0] === 1 && rA[1] === 1)) fail("bee on 1-flower next to bud: bud should be half-charged only");
-  const rB = stateFor(g2, [0]);
-  if (!isWon(g2, rB)) fail("bee on bud next to 1-flower should bloom both (one return pulse)");
+  const onFlower = stateFor(g2, [1]);
+  if (!(onFlower[0] === 1 && onFlower[1] === 1) || isWon(g2, onFlower)) fail("bee on the flower should leave the bud half-charged");
+  const onBud = newState(g2);
+  const budWaves = placeBee(g2, onBud, 0);
+  if (isWon(g2, onBud) || onBud[0] !== 1 || onBud[1] !== 1) fail(`bee on the bud must not be topped up by an echo, got ${onBud[0]},${onBud[1]}`);
+  const budSent = budWaves.flatMap((w) => w.filter((e) => e.tile === 0 && e.relayed).flatMap((e) => e.sent));
+  const flowerSent = budWaves.flatMap((w) => w.filter((e) => e.tile === 1 && e.relayed).flatMap((e) => e.sent));
+  if (budSent.join(",") !== "1" || flowerSent.length !== 0) fail(`bud should pulse the flower and the flower should not pulse back (${budSent} / ${flowerSent})`);
+  if (!isWon(g2, stateFor(g2, [1, 0]))) fail("flower then bud should win once the echo is gone");
 
-  // two adjacent buds do NOT ping-pong to full from one bee
+  // two adjacent buds: one bee leaves both half-charged; the second bee (no sender) finishes them
   const g3 = parseGrid(["22"]);
   const r3 = newState(g3);
   const w3 = placeBee(g3, r3, 0);
-  if (isWon(g3, r3) || r3[0] !== 2 || r3[1] !== 1) fail(`pair of buds should end 2,1 from one bee, got ${r3[0]},${r3[1]}`);
+  if (isWon(g3, r3) || r3[0] !== 1 || r3[1] !== 1) fail(`pair of buds should end 1,1 from one bee, got ${r3[0]},${r3[1]}`);
   if (relays(w3, 0) !== 1 || relays(w3, 1) !== 1) fail("each bud relays once in that turn");
-  // the half-charged bud relays again on the next turn; the full bud absorbs
+  if (w3.some((w) => w.some((e) => e.tile === 1 && e.sent.includes(0)))) fail("the second bud must not rebound");
   const w3b = placeBee(g3, r3, 1);
   if (!isWon(g3, r3) || r3[0] !== 2 || r3[1] !== 2) fail("second bee should finish the pair");
-  if (relays(w3b, 1) !== 1) fail("half-charged bud should relay on the later turn");
-  if (w3b.some((w) => w.some((e) => e.tile === 0))) fail("flower full at the start of the turn must absorb");
+  if (relays(w3b, 1) !== 1) fail("the second bee's bud should relay");
 
-  // a 2-bud hit twice in one turn blooms and relays only once
-  const gHit = parseGrid(["1", "2", "1"]);
+  // two neighbors can still deliver two charges in one wave; the bud relays once and skips both senders
+  const gHit = parseGrid(["11", "12"]);
   const rHit = newState(gHit);
-  const wHit = placeBee(gHit, rHit, 1);
-  const accepted = wHit.reduce((n, w) => n + w.filter((e) => e.tile === 1).reduce((a, e) => a + e.accepted, 0), 0);
-  if (!isWon(gHit, rHit) || accepted !== 2 || relays(wHit, 1) !== 1) {
-    fail(`bud between two flowers should bloom on 2 charge with 1 relay (accepted ${accepted}, relays ${relays(wHit, 1)}, won ${isWon(gHit, rHit)})`);
+  const wHit = placeBee(gHit, rHit, 0);
+  const budEv = wHit.flatMap((w) => w.filter((e) => e.tile === 3));
+  const accepted = budEv.reduce((a, e) => a + e.accepted, 0);
+  if (!isWon(gHit, rHit) || accepted !== 2 || relays(wHit, 3) !== 1 || budEv.some((e) => e.sent.length !== 0)) {
+    fail(`fork should bloom the bud with 2 charge and no rebound (accepted ${accepted})`);
   }
 
   // isolated bud can never bloom
@@ -62,23 +67,22 @@ const relays = (waves: Wave[], tile: number) =>
   if (r6[0] !== 1 || r6[1] !== 1) fail("1 then 3: 3-bud gets only one pulse");
   if (waves.length !== 2) fail(`expected 2 waves, got ${waves.length}`);
 
-  // order can matter: 2 3 2. Bee on the left bud then the middle wins; the reverse leaves the right bud short.
-  const gOrd = parseGrid(["232"]);
-  const ordA = replay(gOrd, [0, 1]);
-  const ordB = replay(gOrd, [1, 0]);
-  if (!ordA.legal || !ordB.legal) fail("both orders of 232 should be legal placements");
-  if (!isWon(gOrd, ordA.r) || isWon(gOrd, ordB.r)) fail("232 should win in order 0,1 and not in order 1,0");
-  if (ordA.r.every((v, i) => v === ordB.r[i])) fail("232 orders should leave different charges");
+  // order can matter: 1 2 1 2. The two buds in either order are legal and leave different charges.
+  const gOrd = parseGrid(["1212"]);
+  const ordA = replay(gOrd, [1, 3]);
+  const ordB = replay(gOrd, [3, 1]);
+  if (!ordA.legal || !ordB.legal) fail("both bud orders of 1212 should be legal");
+  if (!ordA.r.some((v, i) => v !== ordB.r[i])) fail("1212 orders should leave different charges");
   const found = findOrderSensitivity(gOrd, 2);
-  if (!found) fail("order check should notice 232");
+  if (!found) fail("order check should notice 1212");
 
   // undo replays the prefix and restores charges exactly
-  const step = newState(gOrd);
-  placeBee(gOrd, step, 0);
-  const undone = stateFor(gOrd, [0]);
+  const step = newState(g2);
+  placeBee(g2, step, 1);
+  const undone = stateFor(g2, [1]);
   if (undone.some((v, i) => v !== step[i])) fail("undo should restore the state before the last bee");
-  placeBee(gOrd, step, 1);
-  const again = stateFor(gOrd, [0, 1]);
+  placeBee(g2, step, 0);
+  const again = stateFor(g2, [1, 0]);
   if (again.some((v, i) => v !== step[i])) fail("replaying the sequence should match incremental placement");
 }
 

@@ -354,8 +354,8 @@ export class GameScene extends Phaser.Scene {
       tg.setScale(1 / SCALE);
       this.tweens.add({ targets: tg, scale: 1.16 / SCALE, duration: 90, yoyo: true, ease: "Quad.easeOut" });
       this.ring(e.tile, this.g.need[e.tile], this.shown[e.tile] >= this.g.need[e.tile], step);
-      // one pulse to each neighbour, only on the turn's single relay
-      if (e.relayed) for (const nb of this.g.adj[e.tile]) this.dot(e.tile, nb, step);
+      // dots only travel where the relay actually went (no rebound to this turn's senders)
+      if (e.relayed) for (const nb of e.sent) this.dot(e.tile, nb, step);
     }
     this.chain += accepted;
     beepWave(k);

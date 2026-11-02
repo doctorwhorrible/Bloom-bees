@@ -44,7 +44,7 @@ ok(s.bees.length === 1, "L6: tapping a bloomed flower is blocked (no bee spent)"
 await tap(1);
 s = await S();
 ok(s.bees.length === 0 && s.r.every((v) => v === 0), "L6: tapping own bee picks it up and resets pollen");
-await tap(1); await settle(); await tap(0); await settle();
+await tap(1); await settle(); await tap(4); await settle();
 s = await S();
 await page.evaluate(() => window.__game.scene.getScene("Game").undo());
 await page.clock.runFor(100);
@@ -52,10 +52,9 @@ const un = await S();
 ok(s.bees.length === 2 && un.bees.length === 1, "L6: undo removes last bee");
 // out of bees: L9 par1 limit2 -> place 2 bees that don't win? (every tile wins) use L6 instead
 await go(6);
-for (const t of [1, 2, 3, 5]) { await tap(t); await settle(); }
+for (const t of [1, 2, 3]) { await tap(t); await settle(); }
 s = await S();
 ok(!s.won && s.bees.length <= 4, `L6: using limit without solving does not win (bees ${s.bees.length})`);
-await tap(8); s = await S();
 // hint cost
 await go(6);
 await page.evaluate(() => window.__game.scene.getScene("Game").hint());

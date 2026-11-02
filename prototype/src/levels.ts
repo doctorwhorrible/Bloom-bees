@@ -31,33 +31,33 @@ export const LEVELS: LevelMeta[] = [
   },
   {
     id: 5, world: 2, name: "First Buds", difficulty: 2, role: "valley: buds introduced", spare: 2,
-    note: "Buds need 2 pulses. Each passes pollen once per bee — this ring still opens from one tap.",
-    rows: ["222", "2#2", "222"],
+    note: "Buds need 2 pulses. Pollen never bounces back, so one flower has to reach the bud from both sides.",
+    rows: ["11", "12"],
   },
   {
     id: 6, world: 2, name: "Half Open", difficulty: 3, role: "climb: dead-end buds stall", spare: 2,
-    note: "A bud fed by a single flower can stall half-open. Try a bee on the bud itself.",
-    rows: ["2121", "#.#.", "1212"],
+    note: "One line of flowers leaves the end bud half open. Bee the line, then the bud.",
+    rows: ["11112"],
   },
   {
     id: 7, world: 2, name: "Orchard Maze", difficulty: 5, role: "peak: world 2", spare: 2,
-    note: "Which tiles really matter? Watch where chains stall.",
-    rows: ["12221", "#2212", "22#2#", "#12#1", "21#21"],
+    note: "Buds stall where a chain can't reach them twice. Order can matter.",
+    rows: ["11.2", "1212", "#.1#", "2121"],
   },
   {
     id: 8, world: 2, name: "Breather", difficulty: 3, role: "breather after the peak", spare: 2,
-    note: "Take a breath and enjoy the chain.",
-    rows: ["1221", "#..#", "1221"],
+    note: "Start at a corner and enjoy the chain. The bud is carried along.",
+    rows: ["11111", "11121", "11111"],
   },
   {
     id: 9, world: 3, name: "Big Buds", difficulty: 2, role: "valley: 3-pulse buds introduced", spare: 1,
-    note: "Big buds need 3 pulses and still pass pollen only once per bee. Start on the middle bud.",
-    rows: ["111", "111", ".3.", "111", "111"],
+    note: "Big buds need 3 pulses. A corner leaves this one at 2 — then bee the bud. Nothing bounces back.",
+    rows: ["111", "131", "111"],
   },
   {
     id: 10, world: 3, name: "Night Garden", difficulty: 6, role: "capstone peak", spare: 1,
-    note: "Everything you've learned. Take your time.",
-    rows: ["211113", ".31211", "2#1332", "1.1113", "1...31"],
+    note: "Meadows, buds, and one big bud. Pollen still never bounces back.",
+    rows: ["11211", "2#3#1", "12121"],
   },
 ];
 

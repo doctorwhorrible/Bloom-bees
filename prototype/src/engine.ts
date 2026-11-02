@@ -1,15 +1,16 @@
 // Pure game engine: no Phaser. Shared by the game, the solver and the verify script.
 //
-// Rules (DESIGN.md v0.6):
+// Rules (DESIGN.md v0.7):
 //  - One turn = one bee placement and its whole cascade.
 //  - A flower relays at most once per turn, and only if it was not already fully
 //    bloomed at the start of that turn. It relays on the first wave in which it
 //    receives a pulse. Later pulses that turn add charge only.
-//  - A bee's own pulse counts as a received pulse on its tile.
+//  - No rebound: that relay skips any neighbor that already sent this flower a
+//    pulse earlier this turn, including senders in the same wave.
+//  - The bee's own pulse has no sender, so that tile relays to every neighbor.
 //  - Pulses into rocks/empty are blocked. Pulses into a flower that was fully
 //    bloomed at the start of the turn are absorbed (no charge, no relay).
-//  - Charge still stacks: a 2-bud that takes two pulses in one turn blooms, but
-//    it relayed only once. A bud left half-charged can relay again on a later turn.
+//  - Charge still stacks. A bud left half-charged can relay again on a later turn.
 //  - Placement order can matter, so par is the shortest legal bee sequence.
 
 export interface LevelDef {
@@ -43,7 +44,8 @@ export interface WaveEvent {
   tile: number;
   accepted: number; // pulses added to charge this wave
   arrived: number; // pulses that arrived this wave
-  relayed: boolean; // sent exactly one pulse to each flower neighbour
+  relayed: boolean; // fired its one relay this wave
+  sent: number[]; // neighbors that actually received it (senders this turn are skipped)
 }
 export type Wave = WaveEvent[];
 
@@ -103,7 +105,21 @@ export function placeBee(g: Grid, r: Uint8Array, t: number): Wave[] {
   const relayed = new Uint8Array(n);
 
   const waves: Wave[] = [];
-  // arrived counts for the current wave, sparse via a list
+  // Who has already pulsed each tile this turn. Degree is at most 4.
+  const senderN = new Uint8Array(n);
+  const senderOf = new Int16Array(n * 4);
+  const isSender = (i: number, nb: number) => {
+    const base = i * 4;
+    const k = senderN[i];
+    for (let s = 0; s < k; s++) if (senderOf[base + s] === nb) return true;
+    return false;
+  };
+  const addSender = (i: number, from: number) => {
+    if (senderN[i] < 4) senderOf[i * 4 + senderN[i]] = from;
+    senderN[i]++;
+  };
+
+  // Bee pulse: one arrival, no sender, so this tile may relay to every neighbor.
   let curTiles: number[] = [t];
   let curCount = new Uint8Array(n);
   curCount[t] = 1;
@@ -120,17 +136,21 @@ export function placeBee(g: Grid, r: Uint8Array, t: number): Wave[] {
       const acc = room > 0 ? Math.min(arrived, room) : 0;
       if (acc > 0) r[i] += acc;
       let didRelay = false;
+      let sent: number[] = [];
       if (!relayed[i]) {
         relayed[i] = 1;
         didRelay = true;
         const adj = g.adj[i];
         for (let a = 0; a < adj.length; a++) {
           const nb = adj[a];
+          if (isSender(i, nb)) continue; // no rebound to anyone who pulsed us this turn
+          sent.push(nb);
           if (nextCount[nb] === 0) nextTiles.push(nb);
           nextCount[nb]++;
+          addSender(nb, i);
         }
       }
-      if (acc > 0 || didRelay) wave.push({ tile: i, accepted: acc, arrived, relayed: didRelay });
+      if (acc > 0 || didRelay) wave.push({ tile: i, accepted: acc, arrived, relayed: didRelay, sent });
     }
     if (wave.length) waves.push(wave);
     curTiles = nextTiles;
