@@ -31,7 +31,7 @@ export const LEVELS: LevelMeta[] = [
   },
   {
     id: 5, world: 2, name: "First Buds", difficulty: 2, role: "valley: buds introduced", spare: 2,
-    note: "Buds need 2 pulses and pass pollen on every time they get some.",
+    note: "Buds need 2 pulses. Each passes pollen once per bee — this ring still opens from one tap.",
     rows: ["222", "2#2", "222"],
   },
   {
@@ -51,8 +51,8 @@ export const LEVELS: LevelMeta[] = [
   },
   {
     id: 9, world: 3, name: "Big Buds", difficulty: 2, role: "valley: 3-pulse buds introduced", spare: 1,
-    note: "Big buds need 3 pulses and pass pollen three times. Strong amplifiers!",
-    rows: ["333", "3#3", "333"],
+    note: "Big buds need 3 pulses and still pass pollen only once per bee. Start on the middle bud.",
+    rows: ["111", "111", ".3.", "111", "111"],
   },
   {
     id: 10, world: 3, name: "Night Garden", difficulty: 6, role: "capstone peak", spare: 1,

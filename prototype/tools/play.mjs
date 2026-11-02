@@ -56,7 +56,7 @@ for (const t of sol.slice(0, +(process.env.MAXBEES || 99))) {
   n++;
   await page.waitForTimeout(450);
   await page.screenshot({ path: `${out}-bee${n}-mid.png` });
-  await page.waitForTimeout(3200);
+  await page.waitForTimeout(8000);
   await page.screenshot({ path: `${out}-bee${n}.png` });
 }
 await page.waitForTimeout(2800);

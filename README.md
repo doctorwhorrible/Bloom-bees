@@ -24,17 +24,17 @@ Add to Home Screen on iOS/Android for a full-screen feel.
 
 ### Solver / verification
 `npm run verify` (also part of `npm run build`) runs `tools/verify.ts`:
-- brute-force solver over bee sets computes **par** (minimum bees) and the number of minimum solutions for every level;
-- rule unit checks (relay rule, ping-pong, rocks, isolated bud unsolvable);
-- randomized order-independence test (any placement order gives the same final state);
-- writes `src/levels.generated.json` (par, solutions) used by the game for stars and hints.
+- brute-force solver over ordered bee placements computes **par** (minimum bees) and the winning sequences for every level;
+- rule unit checks (once-per-turn relay, no bud ping-pong, rocks, isolated bud unsolvable, an order-sensitive example);
+- an order-sensitivity report for each level (whether two legal orders of the same bees leave different charges);
+- writes `src/levels.generated.json` (par, one ordered solution, and whether the level is order-sensitive) used by the game for stars and hints.
 
 Level layouts live in `src/levels.ts` (`.` empty, `#` rock, `1`/`2`/`3` = pulses needed). Add a level there, run `npm run verify`, and it appears in the menu.
 `tools/uitest.mjs` is a headless smoke test of the built game (win/stars/blocked tap/pickup/undo/hint; slow, software GL).
 `tools/gen.ts` is a random field generator for finding candidate levels (`npx tsx tools/gen.ts <seed> <w> <h> "1:4,2:3,#:2,.:1" <tries>`).
 
 ### Rules implemented (see DESIGN.md)
-- A flower needing *n* pulses relays 1 pulse to each cardinal neighbor every time it accepts a pulse, until full. Pulses at a full flower are absorbed. A bee = one received pulse on its own tile. Rocks/empty block.
+- A flower relays one pulse to each cardinal neighbor at most once per bee (once per turn), and only if it was not already in bloom when that bee was placed. Later pulses that turn still add charge. Pulses into a flower that started the turn in bloom are absorbed. A bee = one received pulse on its own tile. Rocks/empty block. Order can matter; it does not in the ten shipped levels.
 - Waves resolve breadth-first; animated wave by wave with a chain counter and rising pitch.
 - One bee per tile; tapping a bloomed flower is blocked (no bee spent); tapping your own bee picks it up; undo/reset are free.
 - Limit = par + spare (World 1 +3, World 2 +2, World 3 +1). Stars: ≤ par 3★, par+1 2★, within limit 1★; a hint costs 1★ (never below 1★).

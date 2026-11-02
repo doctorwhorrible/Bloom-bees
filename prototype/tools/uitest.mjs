@@ -14,7 +14,7 @@ const ok = (c, m) => { if (!c) { fails++; console.log("FAIL", m); } else console
 const S = () => page.evaluate(() => { const s = window.__game.scene.getScene("Game"); return { bees: s.bees.slice(), won: s.won, anim: s.animating, hint: s.hintUsed, limit: s.limit, shown: Array.from(s.shown), r: Array.from(s.r), msg: s.msgText.text, stars: null }; });
 const go = async (id) => { await page.evaluate((id) => window.__game.scene.start("Game", { id }), id); await page.clock.runFor(500); };
 const tap = async (t) => { await page.evaluate((t) => window.__game.scene.getScene("Game").tap(t), t); await page.clock.runFor(60); };
-const settle = async () => { await page.clock.runFor(3600); };
+const settle = async () => { await page.clock.runFor(9000); };
 
 // every level: placing the stored minimum solution wins, 3 stars, saved
 for (const id of (process.env.ALL ? Object.keys(info) : ["6"])) {

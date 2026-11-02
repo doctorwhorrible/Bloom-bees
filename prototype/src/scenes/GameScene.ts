@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { COL, H, SCALE, W, addSpecks, beeTexture, dotTexture, makeButton, petalColor, ringTexture, starTexture, tileTexture, txt, type Btn } from "../art";
 import { findCompletion, isFull, isWon, parseGrid, placeBee, stateFor, starsFor, type Grid, type Wave } from "../engine";
 import { LEVELS, type LevelMeta } from "../levels";
-import { getStars, saveStars } from "../save";
+import { getStars, getWaveSpeed, saveStars, saveWaveSpeed, type WaveSpeed } from "../save";
 import { beepBlocked, beepPlace, beepUndo, beepWave, beepWin, unlockAudio } from "../sfx";
 import info from "../levels.generated.json";
 
@@ -40,7 +40,10 @@ export class GameScene extends Phaser.Scene {
   private msgText!: Phaser.GameObjects.Text;
   private starLine!: Phaser.GameObjects.Text;
   private undoBtn!: Btn;
+  private resetBtn!: Btn;
   private hintBtn!: Btn;
+  private speedBtn!: Btn;
+  private speed: WaveSpeed = 1;
   private overlay: Phaser.GameObjects.GameObject[] = [];
 
   constructor() { super("Game"); }
@@ -72,7 +75,9 @@ export class GameScene extends Phaser.Scene {
 
     // --- HUD ---
     makeButton(this, 112, 84, 180, 84, "◀ Levels", () => this.scene.start("Menu"), 28);
-    txt(this, 440, 84, `${L.id} · ${L.name}`, 38);
+    txt(this, 372, 84, `${L.id} · ${L.name}`, 30);
+    this.speed = getWaveSpeed();
+    this.speedBtn = makeButton(this, 628, 84, 160, 76, this.speedLabel(), () => this.cycleSpeed(), 24);
     const note = txt(this, W / 2, 205, L.note, 29, COL.soft, false);
     note.setWordWrapWidth(640).setLineSpacing(4);
     this.starLine = txt(this, W / 2, 308, "", 29);
@@ -100,9 +105,10 @@ export class GameScene extends Phaser.Scene {
     this.msgText = txt(this, W / 2, 1300, "", 29, COL.soft, false);
     this.msgText.setWordWrapWidth(660);
     this.undoBtn = makeButton(this, 135, 1420, 205, 104, "Undo", () => this.undo(), 38);
-    makeButton(this, 360, 1420, 205, 104, "Reset", () => this.reset(), 38);
+    this.resetBtn = makeButton(this, 360, 1420, 205, 104, "Reset", () => this.reset(), 38);
     this.hintBtn = makeButton(this, 585, 1420, 205, 104, "Hint −★", () => this.hint(), 38, 0xffe9a8);
     this.undoBtn.setEnabled(false);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cancelAnim(false));
 
     // taps on the grid
     this.input.on("pointerdown", (p: Phaser.Input.Pointer, over: unknown[]) => {
@@ -161,8 +167,10 @@ export class GameScene extends Phaser.Scene {
     this.trayIcons = [];
     this.drawTray();
     this.updateStarLine();
-    this.undoBtn.setEnabled(this.bees.length > 0 && !this.won);
-    this.hintBtn.setEnabled(!this.won);
+    const live = !this.won && !this.animating;
+    this.undoBtn.setEnabled(live && this.bees.length > 0);
+    this.resetBtn.setEnabled(live);
+    this.hintBtn.setEnabled(live);
   }
 
   private say(s: string) { this.msgText.setText(s); }
@@ -189,9 +197,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- input ----------
+  private speedLabel() { return `Speed ${this.speed}×`; }
+  private cycleSpeed() {
+    this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 4 : 1;
+    saveWaveSpeed(this.speed);
+    this.speedBtn.label.setText(this.speedLabel());
+    this.say(`Wave speed ${this.speed}×.`);
+  }
+  /** Base pace is about 2× the original. 2× and 4× shorten that delay. */
+  private waveDelay(count: number): number {
+    const base = Phaser.Math.Clamp(Math.floor(6000 / Math.max(1, count)), 300, 680);
+    return Math.max(40, Math.round(base / this.speed));
+  }
+  private watching(): boolean {
+    if (!this.animating) return false;
+    this.say("Watch the pollen wave…");
+    return true;
+  }
+
   private tap(t: number) {
-    if (this.won) return;
-    this.cancelAnim(true);
+    if (this.won || this.watching()) return;
     const g = this.g;
     if (g.need[t] === 0) {
       if (g.rock[t]) { this.shake(t); this.say("Rocks block pollen. Bees can't land here."); beepBlocked(); }
@@ -223,7 +248,6 @@ export class GameScene extends Phaser.Scene {
     this.placeBeeSprite(t, true);
     const waves = placeBee(g, this.r, t);
     this.say("");
-    this.updateHud();
     this.playWaves(waves);
   }
 
@@ -235,8 +259,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private undo() {
-    if (this.won || this.bees.length === 0) return;
-    this.cancelAnim(true);
+    if (this.won || this.watching() || this.bees.length === 0) return;
     this.bees.pop();
     this.recompute();
     beepUndo();
@@ -245,8 +268,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private reset() {
-    if (this.won) return;
-    this.cancelAnim(true);
+    if (this.won || this.watching()) return;
     this.bees = [];
     this.recompute();
     beepUndo();
@@ -254,7 +276,7 @@ export class GameScene extends Phaser.Scene {
     this.updateHud();
   }
 
-  /** Rebuild the true+shown state from the bee list (order independent) and redraw instantly. */
+  /** Rebuild charges by replaying the bee sequence in order, and redraw instantly. */
   private recompute() {
     this.clearHint();
     this.r = stateFor(this.g, this.bees);
@@ -271,13 +293,15 @@ export class GameScene extends Phaser.Scene {
   private hintTween?: Phaser.Tweens.Tween;
 
   private hint() {
-    if (this.won) return;
-    this.cancelAnim(true);
+    if (this.won || this.watching()) return;
     const have = new Set(this.bees);
     let tile = -1;
-    // 1) a stored minimum solution that contains all current bees
+    // 1) next tile of a stored minimum sequence that starts with the bees already placed
     for (const sol of this.allSolutions) {
-      if (this.bees.every((b) => sol.includes(b))) { tile = sol.find((t) => !have.has(t)) ?? -1; if (tile >= 0) break; }
+      if (sol.length > this.bees.length && this.bees.every((b, i) => sol[i] === b)) {
+        const next = sol[this.bees.length];
+        if (!have.has(next) && !isFull(this.g, this.r, next)) { tile = next; break; }
+      }
     }
     // 2) otherwise search a completion of the current board within the remaining bees
     if (tile < 0) {
@@ -308,7 +332,9 @@ export class GameScene extends Phaser.Scene {
   private playWaves(waves: Wave[]) {
     this.animating = true;
     this.chain = 0;
-    const step = Phaser.Math.Clamp(Math.floor(3000 / Math.max(1, waves.length)), 150, 340);
+    this.updateHud();
+    if (waves.length === 0) { this.finishAnim(); return; }
+    const step = this.waveDelay(waves.length);
     waves.forEach((wave, k) => {
       const ev = this.time.delayedCall(k * step + 10, () => this.applyWave(wave, k, step));
       this.timers.push(ev);
@@ -327,9 +353,9 @@ export class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(tg);
       tg.setScale(1 / SCALE);
       this.tweens.add({ targets: tg, scale: 1.16 / SCALE, duration: 90, yoyo: true, ease: "Quad.easeOut" });
-      this.ring(e.tile, this.g.need[e.tile], this.shown[e.tile] >= this.g.need[e.tile]);
-      // pulses travelling to neighbours (arrive next wave)
-      for (const nb of this.g.adj[e.tile]) this.dot(e.tile, nb, step);
+      this.ring(e.tile, this.g.need[e.tile], this.shown[e.tile] >= this.g.need[e.tile], step);
+      // one pulse to each neighbour, only on the turn's single relay
+      if (e.relayed) for (const nb of this.g.adj[e.tile]) this.dot(e.tile, nb, step);
     }
     this.chain += accepted;
     beepWave(k);
@@ -337,12 +363,13 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: this.comboText, scale: 1.18, duration: 90, yoyo: true });
   }
 
-  private ring(i: number, need: number, bloomed: boolean) {
+  private ring(i: number, need: number, bloomed: boolean, step: number) {
     const p = this.tilePos(i);
     const key = ringTexture(this, bloomed ? petalColor(need) : COL.gold, bloomed ? 12 : 8);
     const base = (this.tileSize * 0.3) / 64;
     const g = this.add.image(p.x, p.y, key).setDepth(2).setScale(base);
-    this.tweens.add({ targets: g, scale: base * (bloomed ? 3.4 : 2.4), alpha: 0, duration: 420, ease: "Quad.easeOut", onComplete: () => g.destroy() });
+    const dur = Math.max(80, Math.min(480, Math.round(step * 0.75)));
+    this.tweens.add({ targets: g, scale: base * (bloomed ? 3.4 : 2.4), alpha: 0, duration: dur, ease: "Quad.easeOut", onComplete: () => g.destroy() });
   }
 
   private dot(from: number, to: number, step: number) {
@@ -372,6 +399,7 @@ export class GameScene extends Phaser.Scene {
       this.winLevel();
       return;
     }
+    this.updateHud();
     this.tweens.add({ targets: this.comboText, alpha: 0, delay: 900, duration: 400 });
     if (this.bees.length >= this.limit) this.say("Out of bees, but some flowers are still closed. Undo or reset.");
     else {

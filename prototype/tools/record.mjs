@@ -52,13 +52,13 @@ await clickLogic(pos[id].x, pos[id].y);
 await run(1200);
 if (wrongStr !== undefined) {
   await click(tileXY(+wrongStr));          // a tempting but wrong first bee
-  await run(3200);
+  await run(8000);
   await clickLogic(135, 1420);              // Undo
   await run(900);
 }
 for (const t of info[id].solution) {
   await click(tileXY(t));
-  await run(3400);
+  await run(8000);
 }
 await run(2600); // win overlay
 await ctx.close();
