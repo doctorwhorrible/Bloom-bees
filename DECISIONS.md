@@ -1,0 +1,23 @@
+# Decisions log
+
+- 2026-11-02: Project started. Phase 1 concept: 3 pitches sent (Costume Sort, Unthread, Lightline). Awaiting pick.
+- 2026-11-02: AiVyn chose own concept over pitches: "Bloom Bees" (working title). Place bees on flowers; each bee sends a pollen pulse to connected flowers; some flowers need 1 pulse, some 2; bloom the whole field within the bee limit.
+- 2026-11-02: Connections use cardinal directions (up/down/left/right) for v1.
+- 2026-11-02: A bee's own flower gets a pulse (plus-shaped effect), per AiVyn.
+- 2026-11-02: CASCADES: every flower that blooms sends a pulse to its cardinal neighbors; one bee can set off a chain reaction. Goal is satisfying large chains.
+- 2026-11-02: 2-pulse buds and obstacles like rocks are the firebreaks that stop/shape chains; bee limit is tight (par = minimum).
+- 2026-11-02: A flower blooms once and pulses once; a bloomed flower is never re-pulsed (prevents infinite loops).
+- 2026-11-02: A 2-pulse bud with one pulse only half-charges (visual), no other effect.
+- 2026-11-02: Cascades resolve in breadth-first waves, animated wave by wave.
+- 2026-11-02: A bee force-blooms its own tile (even a bud) and cascades; placing a bee on an already-bloomed flower is blocked (no bee spent).
+- 2026-11-02: Final state is order-independent (monotone closure); solutions are sets of tiles. Dropped from v0.1: bee stacking, wind, overshoot-wilting.
+- 2026-11-02: A bee gives exactly ONE pulse to its own tile only (no neighbor pulses itself). On a 1-pulse flower it blooms and cascades; on a 2-pulse bud it only half-charges (no bloom, no cascade) until another pulse arrives, per AiVyn.
+- 2026-11-02: One bee per tile, so a bud needs 2 pulses from its own bee (max 1) plus bloomed neighbors; bee + 1 chain pulse or 2 chain pulses both open it. Consequence: a bud can never bloom first, so every flower region needs at least one 1-pulse flower, isolated buds are banned, and solvability must be solver-verified.
+- 2026-11-02: Bee limit = par + spare bees: LOOSE early (stars: 3★ = par, 2★ = par+1, 1★ = any win within limit), tightening toward par as the game goes on. Difficulty is a "rolling hills" curve (sawtooth with dips/valleys and breather levels after peaks, each world with its own hill shape); new mechanics debut in valleys (easy levels), not peaks. Hints/undos do not affect stars.
+- 2026-11-02: Tapping an already-bloomed flower is blocked; no bee spent. Tapping your own bee picks it up (assumption, flagged).
+- 2026-11-02: One bee per tile in v1; a later "bee pair" power-up lets two bees share a bud.
+- 2026-11-02: RULE CHANGE: a flower relays 1 pulse to each cardinal neighbor EVERY time it accepts a pulse, until fully bloomed, then stops (pulses at full flowers absorbed). Total relays from a tile = min(pulses received, need): 1-flower relays once, 2-bud twice, 3-bud thrice. A bee's pulse counts as a received pulse on its own tile (a bee on a bud half-charges it AND relays). Rocks/empty tiles block. Supersedes "blooms pulse once" and "buds can't start chains".
+- 2026-11-02: Final state remains order-independent (least fixed point of r(i) = min(need(i), bee(i) + sum of neighbor r(j))). Pulses may bounce back to the sender; higher-need flowers act as amplifiers.
+- 2026-11-02: Spare bees +3/+2/+1 (World 1/2/3) approved for now; tune in playtesting.
+- 2026-11-02: Using a hint costs one star (assumption: a win never drops below 1 star).
+- 2026-11-02: Prototype v0 built (prototype/, TS + Phaser 3 + Vite): 10 solver-verified levels, pars 1,2,3,4,1,2,4,2,1,5. Public tunnel not possible from the sandbox (outbound tunnel ports blocked); served on localhost:4173 and shipped as media/bloom-bees-web-build.zip for static hosting.

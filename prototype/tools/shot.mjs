@@ -1,0 +1,11 @@
+import { chromium } from "playwright-core";
+const [,, url, out, id, ...taps] = process.argv;
+const b = await chromium.launch({ executablePath: "/usr/bin/google-chrome", args: ["--no-sandbox"] });
+const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+const page = await ctx.newPage();
+page.on("console", (m) => console.log("console:", m.text()));
+page.on("pageerror", (e) => console.log("pageerror:", e.message));
+await page.goto(url);
+await page.waitForTimeout(1000);
+await page.screenshot({ path: out + "-menu.png" });
+await b.close();
